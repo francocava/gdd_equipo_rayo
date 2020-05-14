@@ -58,7 +58,27 @@ IF OBJECT_ID('EQUIPO_RAYO.Butacas') IS NULL
 	)
 GO
 
+--Tabla de Rutas
+IF OBJECT_ID('EQUIPO_RAYO.Rutas') IS NULL
+	CREATE TABLE EQUIPO_RAYO.Rutas
+	(
+		ruta_id INT IDENTITY PRIMARY KEY,
+		ruta_codigo DECIMAL,
+		ruta_ciudad_origen NVARCHAR(255),
+		ruta_ciudad_destino NVARCHAR(255)
+	)
+GO
 
+--Tabla Sucursales
+IF OBJECT_ID('EQUIPO_RAYO.Sucursales') IS NULL
+	CREATE TABLE EQUIPO_RAYO.Sucursales
+	(
+		sucursal_id INT IDENTITY PRIMARY KEY,
+		sucursal_direccion NVARCHAR(255),
+		sucursal_mail NVARCHAR(255),
+		sucursal_telefono DECIMAL(18,0)
+	)
+GO	
 
 --=========================Migracion==============================================================================================================================
 
@@ -96,6 +116,17 @@ SELECT A.avion_id,B.BUTACA_NUMERO,B.BUTACA_TIPO FROM gd_esquema.Maestra B
 GROUP BY A.avion_id,B.BUTACA_NUMERO,B.BUTACA_TIPO
 
 
+--Migracion tabla Rutas
+INSERT INTO EQUIPO_RAYO.Rutas(ruta_codigo,ruta_ciudad_origen,ruta_ciudad_destino)
+SELECT R.RUTA_AEREA_CODIGO,R.RUTA_AEREA_CIU_ORIG,R.RUTA_AEREA_CIU_DEST FROM gd_esquema.Maestra R
+GROUP BY R.RUTA_AEREA_CODIGO,R.RUTA_AEREA_CIU_ORIG,R.RUTA_AEREA_CIU_DEST
+
+
+--Migracion tabla Sucursales
+INSERT INTO EQUIPO_RAYO.Sucursales(sucursal_direccion,sucursal_mail,sucursal_telefono)
+SELECT S.SUCURSAL_DIR,S.SUCURSAL_MAIL,S.SUCURSAL_TELEFONO FROM gd_esquema.Maestra S
+GROUP BY S.SUCURSAL_DIR,S.SUCURSAL_MAIL,S.SUCURSAL_TELEFONO
+
 
 
 
@@ -104,7 +135,7 @@ DROP TABLE EQUIPO_RAYO.Clientes
 DROP TABLE EQUIPO_RAYO.Empresas
 DROP TABLE EQUIPO_RAYO.Aviones
 DROP TABLE EQUIPO_RAYO.Butacas
-
+DROP TABLE EQUIPO_RAYO.Rutas
 
 
 --Para probar si migro bien 
@@ -115,3 +146,9 @@ SELECT * FROM EQUIPO_RAYO.Empresas
 
 SELECT * FROM EQUIPO_RAYO.Butacas
 ORDER BY butaca_numero,avion_id
+
+SELECT * FROM EQUIPO_RAYO.Rutas
+
+
+SELECT * FROM EQUIPO_RAYO.Sucursales
+SELECT DISTINCT SUCURSAL_MAIL FROM gd_esquema.Maestra
