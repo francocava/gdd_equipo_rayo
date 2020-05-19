@@ -99,10 +99,23 @@ IF OBJECT_ID('EQUIPO_RAYO.Compras') IS NULL
 		compra_fecha DATETIME2
 	)
 
+
+--Tabla de Vuelos
+IF OBJECT_ID('EQUIPO_RAYO.Vuelos') IS NULL
+	CREATE TABLE EQUIPO_RAYO.Vuelos
+	(
+		vuelo_id INT IDENTITY PRIMARY KEY,
+		ruta_id INT FOREIGN KEY (ruta_id) REFERENCES EQUIPO_RAYO.Rutas(ruta_id) NOT NULL,
+		avion_id INT FOREIGN KEY (avion_id) REFERENCES EQUIPO_RAYO.Aviones(avion_id) NOT NULL,
+		vuelo_codigo DECIMAL(19,0),
+		vuelo_salida DATETIME2(3),
+		vuelo_llegada DATETIME2(3)
+	)
+
 --=========================Migracion==============================================================================================================================
 
 
---Migracion tabla clientes
+--Clientes
 INSERT INTO EQUIPO_RAYO.Clientes(cliente_dni,cliente_nombre,cliente_apellido,cliente_fecha_nac,cliente_mail,cliente_telefono)
 SELECT C.CLIENTE_DNI,
 	   C.CLIENTE_NOMBRE,
@@ -114,13 +127,13 @@ FROM gd_esquema.Maestra C
 GROUP BY C.CLIENTE_DNI,C.CLIENTE_NOMBRE,C.CLIENTE_APELLIDO,C.CLIENTE_FECHA_NAC,C.CLIENTE_MAIL,C.CLIENTE_TELEFONO 
 
 
---Migracion tabla empresas
+--Empresas
 INSERT INTO EQUIPO_RAYO.Empresas(empresa_razon_social)
 SELECT E.EMPRESA_RAZON_SOCIAL FROM gd_esquema.Maestra E
 GROUP BY E.EMPRESA_RAZON_SOCIAL
 
 
---Migracion tabla aviones
+--Aviones
 INSERT INTO EQUIPO_RAYO.Aviones(empresa_id,avion_identificador,avion_modelo)
 SELECT E.empresa_id,A.AVION_IDENTIFICADOR,A.AVION_MODELO FROM gd_esquema.Maestra A
 	INNER JOIN EQUIPO_RAYO.Empresas E ON E.empresa_razon_social=A.EMPRESA_RAZON_SOCIAL
@@ -128,37 +141,43 @@ SELECT E.empresa_id,A.AVION_IDENTIFICADOR,A.AVION_MODELO FROM gd_esquema.Maestra
 GROUP BY E.empresa_id,A.AVION_IDENTIFICADOR,A.AVION_MODELO
 
 
---Migracion tabla Butacas  --Averiguar que onda el inner 
+--Butacas  --Averiguar que onda el inner 
 INSERT INTO EQUIPO_RAYO.Butacas(avion_id,butaca_numero,butaca_tipo)
 SELECT A.avion_id,B.BUTACA_NUMERO,B.BUTACA_TIPO FROM gd_esquema.Maestra B 
 	INNER JOIN EQUIPO_RAYO.Aviones A ON A.avion_identificador = B.AVION_IDENTIFICADOR WHERE B.AVION_IDENTIFICADOR IS NOT NULL
 GROUP BY A.avion_id,B.BUTACA_NUMERO,B.BUTACA_TIPO
 
 
---Migracion tabla Rutas
+--Rutas
 INSERT INTO EQUIPO_RAYO.Rutas(ruta_codigo,ruta_ciudad_origen,ruta_ciudad_destino)
 SELECT R.RUTA_AEREA_CODIGO,R.RUTA_AEREA_CIU_ORIG,R.RUTA_AEREA_CIU_DEST FROM gd_esquema.Maestra R
 GROUP BY R.RUTA_AEREA_CODIGO,R.RUTA_AEREA_CIU_ORIG,R.RUTA_AEREA_CIU_DEST
 
 
---Migracion tabla Sucursales
+--Sucursales
 INSERT INTO EQUIPO_RAYO.Sucursales(sucursal_direccion,sucursal_mail,sucursal_telefono)
 SELECT S.SUCURSAL_DIR,S.SUCURSAL_MAIL,S.SUCURSAL_TELEFONO FROM gd_esquema.Maestra S
 GROUP BY S.SUCURSAL_DIR,S.SUCURSAL_MAIL,S.SUCURSAL_TELEFONO
 
 
---Migracion tabla Tipos (de habitaciones)
+--Tipos (de habitaciones)
 INSERT INTO EQUIPO_RAYO.Tipos(tipo_codigo,tipo_descripcion)
 SELECT T.TIPO_HABITACION_CODIGO,T.TIPO_HABITACION_DESC FROM gd_esquema.Maestra T
 GROUP BY T.TIPO_HABITACION_CODIGO,T.TIPO_HABITACION_DESC
 
 
---Migracion tabla de Compras
+--Compras
 INSERT INTO EQUIPO_RAYO.Compras(compra_numero,compra_fecha)
 SELECT C.COMPRA_NUMERO,C.COMPRA_FECHA FROM gd_esquema.Maestra C
 GROUP BY C.COMPRA_NUMERO,C.COMPRA_FECHA
 
 
+--Vuelos
+INSERT INTO EQUIPO_RAYO.Vuelos(ruta_id,avion_id,vuelo_codigo,vuelo_salida,vuelo_llegada)
+SELECT R.ruta_id,A.avion_id, V.VUELO_CODIGO,V.VUELO_FECHA_SALUDA,V.VUELO_FECHA_LLEGADA FROM gd_esquema.Maestra V
+	INNER JOIN EQUIPO_RAYO.Rutas R ON R.ruta_codigo = V.RUTA_AEREA_CODIGO
+	INNER JOIN EQUIPO_RAYO.Aviones A ON A.avion_identificador = V.AVION_IDENTIFICADOR WHERE V.AVION_IDENTIFICADOR IS NOT NULL AND V.RUTA_AEREA_CODIGO IS NOT NULL
+GROUP BY R.ruta_id,A.avion_id, V.VUELO_CODIGO,V.VUELO_FECHA_SALUDA,V.VUELO_FECHA_LLEGADA
 
 
 
@@ -169,7 +188,10 @@ DROP TABLE EQUIPO_RAYO.Empresas
 DROP TABLE EQUIPO_RAYO.Aviones
 DROP TABLE EQUIPO_RAYO.Butacas
 DROP TABLE EQUIPO_RAYO.Rutas
-
+DROP TABLE EQUIPO_RAYO.Compras
+DROP TABLE EQUIPO_RAYO.Sucursales
+DROP TABLE EQUIPO_RAYO.Tipos
+DROP TABLE EQUIPO_RAYO.Vuelos
 
 
 
@@ -189,6 +211,12 @@ SELECT * FROM EQUIPO_RAYO.Tipos
 SELECT * FROM EQUIPO_RAYO.Compras
 
 SELECT * FROM EQUIPO_RAYO.Sucursales
+
+SELECT * FROM EQUIPO_RAYO.Vuelos --todo ok
+SELECT DISTINCT vuelo_codigo FROM EQUIPO_RAYO.Vuelos
+
+
 SELECT DISTINCT SUCURSAL_MAIL FROM gd_esquema.Maestra 
 SELECT DISTINCT  TIPO_HABITACION_DESC FROM gd_esquema.Maestra
 SELECT DISTINCT COMPRA_NUMERO FROM gd_esquema.Maestra
+SELECT DISTINCT VUELO_CODIGO FROM gd_esquema.Maestra
