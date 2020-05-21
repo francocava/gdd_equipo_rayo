@@ -136,6 +136,32 @@ IF OBJECT_ID('EQUIPO_RAYO.Hoteles') IS NULL
 	)
 
 
+IF OBJECT_ID('EQUIPO_RAYO.Habitaciones') IS NULL
+	CREATE TABLE EQUIPO_RAYO.Habitaciones
+	(
+		habitacion_id INT IDENTITY PRIMARY KEY,
+		tipo_id INT FOREIGN KEY (tipo_id) REFERENCES EQUIPO_RAYO.Tipos(tipo_id) NOT NULL,
+		hotel_id INT FOREIGN KEY (hotel_id) REFERENCES EQUIPO_RAYO.Hoteles(hotel_id) NOT NULL,
+		habitacion_numero DECIMAL(18,0),
+		habitacion_piso DECIMAL(18,0),
+		habitacion_frente NVARCHAR(50),
+		habitacion_costo DECIMAL(18,2),
+		habitacion_precio DECIMAL(18,2)
+	)
+
+
+IF OBJECT_ID('EQUIPO_RAYO.Estadias') IS NULL
+	CREATE TABLE EQUIPO_RAYO.Estadias
+	(
+		estadia_id INT IDENTITY PRIMARY KEY,
+		hotel_id INT FOREIGN KEY (hotel_id) REFERENCES EQUIPO_RAYO.Hoteles(hotel_id) NOT NULL,
+		compra_id INT FOREIGN KEY (compra_id) REFERENCES EQUIPO_RAYO.Compras(compra_id) NOT NULL,
+		estadia_fecha_ingreso DATETIME2(3),
+		estadia_cant_noches DECIMAL(18,0),
+		estadia_codigo DECIMAL(18,0)
+	)
+
+
 --=========================Migracion==============================================================================================================================
 
 
@@ -213,13 +239,36 @@ SELECT V.vuelo_id,C.compra_id,B.butaca_id,P.PASAJE_CODIGO,P.PASAJE_COSTO,P.PASAJ
 GROUP BY V.vuelo_id,C.compra_id,B.butaca_id,P.PASAJE_CODIGO,P.PASAJE_COSTO,P.PASAJE_PRECIO
 
 
-
 --Hoteles
 INSERT INTO EQUIPO_RAYO.Hoteles(empresa_id,hotel_calle,hotel_nro_calle,hotel_estrellas)
 SELECT E.empresa_id,H.HOTEL_CALLE,H.HOTEL_NRO_CALLE,H.HOTEL_CANTIDAD_ESTRELLAS FROM gd_esquema.Maestra H
 	INNER JOIN EQUIPO_RAYO.Empresas E ON E.empresa_razon_social = H.EMPRESA_RAZON_SOCIAL WHERE H.EMPRESA_RAZON_SOCIAL IS NOT NULL AND H.HOTEL_CALLE IS NOT NULL
 GROUP BY E.empresa_id,H.HOTEL_CALLE,H.HOTEL_NRO_CALLE,H.HOTEL_CANTIDAD_ESTRELLAS
 
+--Habitaciones
+INSERT INTO EQUIPO_RAYO.Habitaciones(tipo_id,hotel_id,habitacion_numero,habitacion_piso,habitacion_frente,habitacion_costo,habitacion_precio)
+SELECT T.tipo_id,
+       H.hotel_id,
+       Hab.HABITACION_NUMERO,
+       Hab.HABITACION_PISO,
+	   Hab.HABITACION_FRENTE,
+	   Hab.HABITACION_COSTO,
+	   Hab.HABITACION_PRECIO
+ FROM gd_esquema.Maestra Hab
+	INNER JOIN EQUIPO_RAYO.Tipos T ON T.tipo_codigo=Hab.TIPO_HABITACION_CODIGO
+	INNER JOIN EQUIPO_RAYO.Hoteles H ON H.hotel_calle = Hab.HOTEL_CALLE AND H.hotel_nro_calle=Hab.HOTEL_NRO_CALLE WHERE Hab.HOTEL_CALLE IS NOT NULL
+
+
+--Estadias
+INSERT INTO EQUIPO_RAYO.Estadias(hotel_id,compra_id,estadia_codigo,estadia_fecha_ingreso,estadia_cant_noches)
+SELECT H.hotel_id,
+       C.compra_id,
+       E.ESTADIA_CODIGO,
+	   E.ESTADIA_FECHA_INI,
+	   E.ESTADIA_CANTIDAD_NOCHES
+ FROM gd_esquema.Maestra E
+	INNER JOIN EQUIPO_RAYO.Compras C ON C.compra_numero = E.COMPRA_NUMERO
+	INNER JOIN EQUIPO_RAYO.Hoteles H ON H.hotel_calle = E.HOTEL_CALLE AND H.hotel_nro_calle=E.HOTEL_NRO_CALLE WHERE E.HOTEL_CALLE IS NOT NULL
 
 
 --Drop Zone-- Despues hay que hacer un script aparte para esto
@@ -258,8 +307,12 @@ SELECT DISTINCT vuelo_codigo FROM EQUIPO_RAYO.Vuelos
 SELECT * FROM EQUIPO_RAYO.Pasajes --2 min en devolverlo
 SELECT * FROM EQUIPO_RAYO.Hoteles
 
+SELECT * FROM EQUIPO_RAYO.Habitaciones
+SELECT * FROM EQUIPO_RAYO.Estadias
+
 
 SELECT DISTINCT SUCURSAL_MAIL FROM gd_esquema.Maestra 
 SELECT DISTINCT  TIPO_HABITACION_DESC FROM gd_esquema.Maestra
 SELECT DISTINCT COMPRA_NUMERO FROM gd_esquema.Maestra
 SELECT DISTINCT VUELO_CODIGO FROM gd_esquema.Maestra
+SELECT count(*) FROM gd_esquema.Maestra WHERE HABITACION_FRENTE IS NOT NULL --bien migradas las habitacioness
