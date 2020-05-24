@@ -96,7 +96,7 @@ IF OBJECT_ID('EQUIPO_RAYO.Compras') IS NULL
 	(
 		compra_id INT IDENTITY PRIMARY KEY,
 		compra_numero DECIMAL(18,0),
-		compra_fecha DATETIME2
+		compra_fecha DATETIME2(3)
 	)
 
 
@@ -216,13 +216,13 @@ GROUP BY R.RUTA_AEREA_CODIGO,R.RUTA_AEREA_CIU_ORIG,R.RUTA_AEREA_CIU_DEST
 
 --Sucursales
 INSERT INTO EQUIPO_RAYO.Sucursales(sucursal_direccion,sucursal_mail,sucursal_telefono)
-SELECT S.SUCURSAL_DIR,S.SUCURSAL_MAIL,S.SUCURSAL_TELEFONO FROM gd_esquema.Maestra S
+SELECT S.SUCURSAL_DIR,S.SUCURSAL_MAIL,S.SUCURSAL_TELEFONO FROM gd_esquema.Maestra S WHERE S.SUCURSAL_DIR IS NOT NULL
 GROUP BY S.SUCURSAL_DIR,S.SUCURSAL_MAIL,S.SUCURSAL_TELEFONO
 
 
 --Tipos (de habitaciones)
 INSERT INTO EQUIPO_RAYO.Tipos(tipo_codigo,tipo_descripcion)
-SELECT T.TIPO_HABITACION_CODIGO,T.TIPO_HABITACION_DESC FROM gd_esquema.Maestra T
+SELECT T.TIPO_HABITACION_CODIGO,T.TIPO_HABITACION_DESC FROM gd_esquema.Maestra T WHERE HOTEL_CALLE IS NOT NULL
 GROUP BY T.TIPO_HABITACION_CODIGO,T.TIPO_HABITACION_DESC
 
 
@@ -235,16 +235,18 @@ GROUP BY C.COMPRA_NUMERO,C.COMPRA_FECHA
 --Vuelos
 INSERT INTO EQUIPO_RAYO.Vuelos(ruta_id,avion_id,vuelo_codigo,vuelo_salida,vuelo_llegada)
 SELECT R.ruta_id,A.avion_id, V.VUELO_CODIGO,V.VUELO_FECHA_SALUDA,V.VUELO_FECHA_LLEGADA FROM gd_esquema.Maestra V
-	INNER JOIN EQUIPO_RAYO.Rutas R ON R.ruta_codigo = V.RUTA_AEREA_CODIGO
-	INNER JOIN EQUIPO_RAYO.Aviones A ON A.avion_identificador = V.AVION_IDENTIFICADOR WHERE V.AVION_IDENTIFICADOR IS NOT NULL AND V.RUTA_AEREA_CODIGO IS NOT NULL
+	INNER JOIN EQUIPO_RAYO.Rutas R ON R.ruta_codigo = V.RUTA_AEREA_CODIGO AND R.ruta_ciudad_origen = V.RUTA_AEREA_CIU_ORIG AND R.ruta_ciudad_destino=V.RUTA_AEREA_CIU_DEST
+	INNER JOIN EQUIPO_RAYO.Aviones A ON A.avion_identificador = V.AVION_IDENTIFICADOR WHERE V.AVION_IDENTIFICADOR IS NOT NULL
 GROUP BY R.ruta_id,A.avion_id, V.VUELO_CODIGO,V.VUELO_FECHA_SALUDA,V.VUELO_FECHA_LLEGADA
 
---Pasajes --4 min en correr esto. Pasa que una compra puede ser uno o varios pasajes entonces genera muchas filas 
+
+--Pasajes --Hay algo mal con las butacas
 INSERT INTO EQUIPO_RAYO.Pasajes(vuelo_id,compra_id,butaca_id,pasaje_codigo,pasaje_costo,pasaje_precio)
 SELECT V.vuelo_id,C.compra_id,B.butaca_id,P.PASAJE_CODIGO,P.PASAJE_COSTO,P.PASAJE_PRECIO FROM gd_esquema.Maestra P
-	INNER JOIN EQUIPO_RAYO.Vuelos V ON V.vuelo_codigo = P.VUELO_CODIGO
-	INNER JOIN EQUIPO_RAYO.Compras C ON C.compra_numero = P.COMPRA_NUMERO
-	INNER JOIN EQUIPO_RAYO.Butacas B ON B.butaca_numero = P.BUTACA_NUMERO 
+	INNER JOIN EQUIPO_RAYO.Vuelos V ON V.vuelo_codigo = P.VUELO_CODIGO 
+	INNER JOIN EQUIPO_RAYO.Compras C ON C.compra_numero = P.COMPRA_NUMERO 
+	INNER JOIN EQUIPO_RAYO.Butacas B ON B.butaca_numero = P.BUTACA_NUMERO AND B.butaca_tipo=P.BUTACA_TIPO 
+	INNER JOIN EQUIPO_RAYO.Aviones A ON A.avion_id = B.avion_id AND A.avion_identificador = P.AVION_IDENTIFICADOR
 		WHERE P.VUELO_CODIGO IS NOT NULL AND P.COMPRA_NUMERO IS NOT NULL AND P.BUTACA_NUMERO IS NOT NULL 
 GROUP BY V.vuelo_id,C.compra_id,B.butaca_id,P.PASAJE_CODIGO,P.PASAJE_COSTO,P.PASAJE_PRECIO
 
@@ -318,22 +320,25 @@ SELECT * FROM EQUIPO_RAYO.Empresas --OK
 SELECT * FROM EQUIPO_RAYO.Butacas --OK 
 ORDER BY avion_id
 
-SELECT ruta_codigo FROM EQUIPO_RAYO.Rutas --OK
+SELECT ruta_id,ruta_codigo,ruta_ciudad_origen,ruta_ciudad_destino FROM EQUIPO_RAYO.Rutas --OK
+ORDER BY ruta_codigo
 
-SELECT * FROM EQUIPO_RAYO.Tipos
+SELECT * FROM EQUIPO_RAYO.Tipos --OK
 
-SELECT * FROM EQUIPO_RAYO.Compras
+SELECT * FROM EQUIPO_RAYO.Compras --OK
 
-SELECT * FROM EQUIPO_RAYO.Sucursales
+SELECT * FROM EQUIPO_RAYO.Sucursales --OK
 
-SELECT * FROM EQUIPO_RAYO.Vuelos --todo ok
-SELECT DISTINCT vuelo_codigo FROM EQUIPO_RAYO.Vuelos
+SELECT DISTINCT vuelo_codigo FROM EQUIPO_RAYO.Vuelos -- OK!!!
+SELECT vuelo_codigo,vuelo_salida,ruta_id FROM EQUIPO_RAYO.Vuelos WHERE vuelo_codigo = '7039' --OK
 
-SELECT * FROM EQUIPO_RAYO.Pasajes --2 min en devolverlo
+SELECT * FROM EQUIPO_RAYO.Pasajes --OK!!
 SELECT * FROM EQUIPO_RAYO.Hoteles -- OK
 
 SELECT * FROM EQUIPO_RAYO.Habitaciones --Mal
 SELECT * FROM EQUIPO_RAYO.Estadias --Mal
+
+
 
 --Tabla maestra
 
@@ -346,8 +351,25 @@ SELECT DISTINCT AVION_IDENTIFICADOR,AVION_MODELO FROM gd_esquema.Maestra WHERE A
 SELECT DISTINCT BUTACA_NUMERO,BUTACA_TIPO,AVION_IDENTIFICADOR FROM gd_esquema.Maestra WHERE AVION_IDENTIFICADOR IS NOT NULL --2034 butacas totales
 ORDER BY AVION_IDENTIFICADOR,BUTACA_NUMERO
 
-SELECT DISTINCT RUTA_AEREA_CODIGO,RUTA_AEREA_CIU_DEST,RUTA_AEREA_CIU_ORIG FROM gd_esquema.Maestra WHERE RUTA_AEREA_CIU_ORIG IS NOT NULL --74 Rutas diferentes
-ORDER BY RUTA_AEREA_CODIGO
+SELECT DISTINCT RUTA_AEREA_CODIGO,RUTA_AEREA_CIU_DEST,RUTA_AEREA_CIU_ORIG FROM gd_esquema.Maestra WHERE RUTA_AEREA_CIU_ORIG IS NOT NULL --74 Rutas diferentes hay rutas que tienen el mismo codigo pero diferentes lugares 
+ORDER BY RUTA_AEREA_CODIGO																												-- Puede que sea uno de los errores
+
+SELECT DISTINCT TIPO_HABITACION_CODIGO,TIPO_HABITACION_DESC FROM gd_esquema.Maestra --5 Tipos diferentes
+
+SELECT DISTINCT COMPRA_NUMERO FROM gd_esquema.Maestra --Hay 20438 compras diferentes
+
+SELECT DISTINCT SUCURSAL_DIR,SUCURSAL_MAIL FROM gd_esquema.Maestra --6 Sucursales diferentes (hay un null)
+
+SELECT DISTINCT VUELO_CODIGO,RUTA_AEREA_CIU_ORIG,RUTA_AEREA_CIU_DEST FROM gd_esquema.Maestra WHERE VUELO_CODIGO IS NOT NULL --4750 Vuelos diferentes
+SELECT VUELO_CODIGO,VUELO_FECHA_SALUDA , AVION_IDENTIFICADOR,RUTA_AEREA_CODIGO,CLIENTE_DNI FROM gd_esquema.Maestra WHERE VUELO_CODIGO='7039' AND CLIENTE_DNI IS NOT NULL
+ --Devuelve 63 veces el mismo vuelo, cada entrada es un cliente diferente. 
+
+SELECT DISTINCT PASAJE_CODIGO FROM gd_esquema.Maestra WHERE PASAJE_CODIGO IS NOT NULL --Pasajes 282403 diferentes (el pasaje existe aunque no haya sido vendido)
+																					  --tendra null el cliente 
+
+SELECT VUELO_CODIGO FROM gd_esquema.Maestra WHERE VUELO_CODIGO IS NOT NULL --504237 operaciones con vuelos
+SELECT HOTEL_CALLE,HOTEL_NRO_CALLE FROM gd_esquema.Maestra WHERE HOTEL_CALLE IS NOT NULL --31376 operaciones con hoteles
+SELECT * FROM gd_esquema.Maestra --535613 total de operaciones entre los dos
 
 SELECT count(*) FROM gd_esquema.Maestra WHERE HABITACION_FRENTE IS NOT NULL -- devuelve 31376 Estadias_Habitaciones tiene que devolver este numero tambien
 
@@ -359,7 +381,6 @@ SELECT DISTINCT HOTEL_CALLE,HOTEL_NRO_CALLE FROM gd_esquema.Maestra WHERE HOTEL_
 
 SELECT DISTINCT ESTADIA_CODIGO FROM gd_esquema.Maestra -- Hay 15689 estadias diferentes
 
-SELECT DISTINCT COMPRA_NUMERO FROM gd_esquema.Maestra --Hay 20438 compras diferentes
 
 SELECT DISTINCT COMPRA_NUMERO FROM gd_esquema.Maestra WHERE HOTEL_CALLE IS NOT NULL --15688 Compras que son estadias diferentes
 SELECT DISTINCT COMPRA_NUMERO FROM gd_esquema.Maestra WHERE VUELO_CODIGO IS NOT NULL --4750 Compras que son pasajes 
