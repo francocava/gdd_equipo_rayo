@@ -162,6 +162,15 @@ IF OBJECT_ID('EQUIPO_RAYO.Estadias') IS NULL
 	)
 
 
+IF OBJECT_ID('EQUIPO_RAYO.Estadias_Habitaciones') IS NULL
+	CREATE TABLE EQUIPO_RAYO.Estadias_Habitaciones
+	(
+		estadia_id INT FOREIGN KEY (estadia_id) REFERENCES EQUIPO_RAYO.Estadias(estadia_id) NOT NULL,
+		habitacion_id INT FOREIGN KEY (habitacion_id) REFERENCES EQUIPO_RAYO.Habitaciones(habitacion_id) NOT NULL,
+		PRIMARY KEY(estadia_id,habitacion_id)
+	)
+
+
 --=========================Migracion==============================================================================================================================
 
 
@@ -174,6 +183,7 @@ SELECT C.CLIENTE_DNI,
 	   C.CLIENTE_MAIL,
 	   C.CLIENTE_TELEFONO 
 FROM gd_esquema.Maestra C
+WHERE C.CLIENTE_DNI IS NOT NULL
 GROUP BY C.CLIENTE_DNI,C.CLIENTE_NOMBRE,C.CLIENTE_APELLIDO,C.CLIENTE_FECHA_NAC,C.CLIENTE_MAIL,C.CLIENTE_TELEFONO 
 
 
@@ -200,7 +210,7 @@ GROUP BY A.avion_id,B.BUTACA_NUMERO,B.BUTACA_TIPO
 
 --Rutas
 INSERT INTO EQUIPO_RAYO.Rutas(ruta_codigo,ruta_ciudad_origen,ruta_ciudad_destino)
-SELECT R.RUTA_AEREA_CODIGO,R.RUTA_AEREA_CIU_ORIG,R.RUTA_AEREA_CIU_DEST FROM gd_esquema.Maestra R
+SELECT R.RUTA_AEREA_CODIGO,R.RUTA_AEREA_CIU_ORIG,R.RUTA_AEREA_CIU_DEST FROM gd_esquema.Maestra R WHERE R.AVION_IDENTIFICADOR IS NOT NULL
 GROUP BY R.RUTA_AEREA_CODIGO,R.RUTA_AEREA_CIU_ORIG,R.RUTA_AEREA_CIU_DEST
 
 
@@ -271,29 +281,44 @@ SELECT H.hotel_id,
 	INNER JOIN EQUIPO_RAYO.Hoteles H ON H.hotel_calle = E.HOTEL_CALLE AND H.hotel_nro_calle=E.HOTEL_NRO_CALLE WHERE E.HOTEL_CALLE IS NOT NULL
 
 
+--Habitaciones por estadia (tabla intermedia)
+INSERT INTO EQUIPO_RAYO.Estadias_Habitaciones(estadia_id,habitacion_id)
+SELECT E.estadia_id,Hab.habitacion_id FROM gd_esquema.Maestra U
+	INNER JOIN EQUIPO_RAYO.Estadias E ON E.estadia_codigo = U.ESTADIA_CODIGO
+	INNER JOIN EQUIPO_RAYO.Habitaciones Hab on Hab.hotel_id = E.hotel_id AND Hab.habitacion_numero = U.HABITACION_NUMERO AND Hab.habitacion_piso = U.HABITACION_PISO
+	WHERE U.ESTADIA_CODIGO IS NOT NULL
+GROUP BY E.estadia_id,Hab.habitacion_id
+
+
 --Drop Zone-- Despues hay que hacer un script aparte para esto
+
 DROP TABLE EQUIPO_RAYO.Clientes
 DROP TABLE EQUIPO_RAYO.Empresas
-DROP TABLE EQUIPO_RAYO.Aviones
-DROP TABLE EQUIPO_RAYO.Butacas
-DROP TABLE EQUIPO_RAYO.Rutas
-DROP TABLE EQUIPO_RAYO.Compras
+DROP TABLE EQUIPO_RAYO.Aviones 
+DROP TABLE EQUIPO_RAYO.Butacas 
+DROP TABLE EQUIPO_RAYO.Rutas 
+DROP TABLE EQUIPO_RAYO.Compras 
 DROP TABLE EQUIPO_RAYO.Sucursales
 DROP TABLE EQUIPO_RAYO.Tipos
-DROP TABLE EQUIPO_RAYO.Vuelos
+DROP TABLE EQUIPO_RAYO.Vuelos 
 DROP TABLE EQUIPO_RAYO.Hoteles
-
+DROP TABLE EQUIPO_RAYO.Habitaciones
+DROP TABLE EQUIPO_RAYO.Estadias_Habitaciones
+DROP TABLE EQUIPO_RAYO.Estadias
+DROP TABLE EQUIPO_RAYO.Pasajes
 
 --Para probar si migro bien 
 
-SELECT * FROM EQUIPO_RAYO.Aviones
+SELECT * FROM EQUIPO_RAYO.Clientes --OK 
 
-SELECT * FROM EQUIPO_RAYO.Empresas
+SELECT * FROM EQUIPO_RAYO.Aviones ORDER BY empresa_id --OK
 
-SELECT * FROM EQUIPO_RAYO.Butacas
-ORDER BY butaca_numero,avion_id
+SELECT * FROM EQUIPO_RAYO.Empresas --OK
 
-SELECT * FROM EQUIPO_RAYO.Rutas
+SELECT * FROM EQUIPO_RAYO.Butacas --OK 
+ORDER BY avion_id
+
+SELECT ruta_codigo FROM EQUIPO_RAYO.Rutas --OK
 
 SELECT * FROM EQUIPO_RAYO.Tipos
 
@@ -305,14 +330,36 @@ SELECT * FROM EQUIPO_RAYO.Vuelos --todo ok
 SELECT DISTINCT vuelo_codigo FROM EQUIPO_RAYO.Vuelos
 
 SELECT * FROM EQUIPO_RAYO.Pasajes --2 min en devolverlo
-SELECT * FROM EQUIPO_RAYO.Hoteles
+SELECT * FROM EQUIPO_RAYO.Hoteles -- OK
 
-SELECT * FROM EQUIPO_RAYO.Habitaciones
-SELECT * FROM EQUIPO_RAYO.Estadias
+SELECT * FROM EQUIPO_RAYO.Habitaciones --Mal
+SELECT * FROM EQUIPO_RAYO.Estadias --Mal
 
+--Tabla maestra
 
-SELECT DISTINCT SUCURSAL_MAIL FROM gd_esquema.Maestra 
-SELECT DISTINCT  TIPO_HABITACION_DESC FROM gd_esquema.Maestra
-SELECT DISTINCT COMPRA_NUMERO FROM gd_esquema.Maestra
-SELECT DISTINCT VUELO_CODIGO FROM gd_esquema.Maestra
-SELECT count(*) FROM gd_esquema.Maestra WHERE HABITACION_FRENTE IS NOT NULL --bien migradas las habitacioness
+SELECT DISTINCT CLIENTE_DNI,CLIENTE_MAIL FROM gd_esquema.Maestra WHERE CLIENTE_DNI IS NOT NULL --237522 clientes diferentes
+
+SELECT DISTINCT EMPRESA_RAZON_SOCIAL FROM gd_esquema.Maestra --22 empresas diferentes
+
+SELECT DISTINCT AVION_IDENTIFICADOR,AVION_MODELO FROM gd_esquema.Maestra WHERE AVION_IDENTIFICADOR IS NOT NULL --33 Aviones diferentes
+
+SELECT DISTINCT BUTACA_NUMERO,BUTACA_TIPO,AVION_IDENTIFICADOR FROM gd_esquema.Maestra WHERE AVION_IDENTIFICADOR IS NOT NULL --2034 butacas totales
+ORDER BY AVION_IDENTIFICADOR,BUTACA_NUMERO
+
+SELECT DISTINCT RUTA_AEREA_CODIGO,RUTA_AEREA_CIU_DEST,RUTA_AEREA_CIU_ORIG FROM gd_esquema.Maestra WHERE RUTA_AEREA_CIU_ORIG IS NOT NULL --74 Rutas diferentes
+ORDER BY RUTA_AEREA_CODIGO
+
+SELECT count(*) FROM gd_esquema.Maestra WHERE HABITACION_FRENTE IS NOT NULL -- devuelve 31376 Estadias_Habitaciones tiene que devolver este numero tambien
+
+SELECT DISTINCT HABITACION_FRENTE,HABITACION_NUMERO,HABITACION_PISO,HOTEL_NRO_CALLE,HOTEL_CALLE FROM gd_esquema.Maestra
+WHERE HOTEL_CALLE IS NOT NULL
+ORDER BY HOTEL_CALLE --Hay 424 habitaciones diferentes en total 
+
+SELECT DISTINCT HOTEL_CALLE,HOTEL_NRO_CALLE FROM gd_esquema.Maestra WHERE HOTEL_CALLE IS NOT NULL --Hay 20 hoteles diferentes
+
+SELECT DISTINCT ESTADIA_CODIGO FROM gd_esquema.Maestra -- Hay 15689 estadias diferentes
+
+SELECT DISTINCT COMPRA_NUMERO FROM gd_esquema.Maestra --Hay 20438 compras diferentes
+
+SELECT DISTINCT COMPRA_NUMERO FROM gd_esquema.Maestra WHERE HOTEL_CALLE IS NOT NULL --15688 Compras que son estadias diferentes
+SELECT DISTINCT COMPRA_NUMERO FROM gd_esquema.Maestra WHERE VUELO_CODIGO IS NOT NULL --4750 Compras que son pasajes 
