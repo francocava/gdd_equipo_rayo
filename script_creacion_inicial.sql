@@ -240,7 +240,7 @@ SELECT R.ruta_id,A.avion_id, V.VUELO_CODIGO,V.VUELO_FECHA_SALUDA,V.VUELO_FECHA_L
 GROUP BY R.ruta_id,A.avion_id, V.VUELO_CODIGO,V.VUELO_FECHA_SALUDA,V.VUELO_FECHA_LLEGADA
 
 
---Pasajes --Hay algo mal con las butacas
+--Pasajes 
 INSERT INTO EQUIPO_RAYO.Pasajes(vuelo_id,compra_id,butaca_id,pasaje_codigo,pasaje_costo,pasaje_precio)
 SELECT V.vuelo_id,C.compra_id,B.butaca_id,P.PASAJE_CODIGO,P.PASAJE_COSTO,P.PASAJE_PRECIO FROM gd_esquema.Maestra P
 	INNER JOIN EQUIPO_RAYO.Vuelos V ON V.vuelo_codigo = P.VUELO_CODIGO 
@@ -267,9 +267,9 @@ SELECT T.tipo_id,
 	   Hab.HABITACION_COSTO,
 	   Hab.HABITACION_PRECIO
  FROM gd_esquema.Maestra Hab
-	INNER JOIN EQUIPO_RAYO.Tipos T ON T.tipo_codigo=Hab.TIPO_HABITACION_CODIGO
+	INNER JOIN EQUIPO_RAYO.Tipos T ON T.tipo_codigo=Hab.TIPO_HABITACION_CODIGO AND T.tipo_descripcion=Hab.TIPO_HABITACION_DESC
 	INNER JOIN EQUIPO_RAYO.Hoteles H ON H.hotel_calle = Hab.HOTEL_CALLE AND H.hotel_nro_calle=Hab.HOTEL_NRO_CALLE WHERE Hab.HOTEL_CALLE IS NOT NULL
-
+GROUP BY T.tipo_id,H.hotel_id,Hab.HABITACION_NUMERO,hab.HABITACION_PISO,hab.HABITACION_FRENTE,hab.HABITACION_COSTO,hab.HABITACION_PRECIO
 
 --Estadias
 INSERT INTO EQUIPO_RAYO.Estadias(hotel_id,compra_id,estadia_codigo,estadia_fecha_ingreso,estadia_cant_noches)
@@ -281,14 +281,21 @@ SELECT H.hotel_id,
  FROM gd_esquema.Maestra E
 	INNER JOIN EQUIPO_RAYO.Compras C ON C.compra_numero = E.COMPRA_NUMERO
 	INNER JOIN EQUIPO_RAYO.Hoteles H ON H.hotel_calle = E.HOTEL_CALLE AND H.hotel_nro_calle=E.HOTEL_NRO_CALLE WHERE E.HOTEL_CALLE IS NOT NULL
+GROUP BY H.hotel_id,C.compra_id,E.ESTADIA_CODIGO,E.ESTADIA_FECHA_INI,E.ESTADIA_CANTIDAD_NOCHES
 
 
 --Habitaciones por estadia (tabla intermedia)
 INSERT INTO EQUIPO_RAYO.Estadias_Habitaciones(estadia_id,habitacion_id)
 SELECT E.estadia_id,Hab.habitacion_id FROM gd_esquema.Maestra U
-	INNER JOIN EQUIPO_RAYO.Estadias E ON E.estadia_codigo = U.ESTADIA_CODIGO
+	INNER JOIN EQUIPO_RAYO.Compras C ON C.compra_numero = U.COMPRA_NUMERO
+	INNER JOIN EQUIPO_RAYO.Estadias E ON E.estadia_codigo = U.ESTADIA_CODIGO AND E.compra_id = C.compra_id
 	INNER JOIN EQUIPO_RAYO.Habitaciones Hab on Hab.hotel_id = E.hotel_id AND Hab.habitacion_numero = U.HABITACION_NUMERO AND Hab.habitacion_piso = U.HABITACION_PISO
 	WHERE U.ESTADIA_CODIGO IS NOT NULL
 GROUP BY E.estadia_id,Hab.habitacion_id
 
 
+INSERT INTO EQUIPO_RAYO.Estadias_Habitaciones(estadia_id,habitacion_id)
+SELECT E.estadia_id,Hab.habitacion_id FROM EQUIPO_RAYO.Estadias E
+	INNER JOIN EQUIPO_RAYO.Hoteles H ON H.hotel_id=E.hotel_id
+	INNER JOIN EQUIPO_RAYO.Habitaciones Hab ON Hab.hotel_id=H.hotel_id AND Hab.hotel_id = E.hotel_id
+GROUP BY E.estadia_id,Hab.habitacion_id

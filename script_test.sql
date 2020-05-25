@@ -28,8 +28,13 @@ SELECT vuelo_codigo,vuelo_salida,ruta_id FROM EQUIPO_RAYO.Vuelos WHERE vuelo_cod
 SELECT * FROM EQUIPO_RAYO.Pasajes --OK!!
 SELECT * FROM EQUIPO_RAYO.Hoteles -- OK
 
-SELECT * FROM EQUIPO_RAYO.Habitaciones --Mal
-SELECT * FROM EQUIPO_RAYO.Estadias --Mal
+SELECT * FROM EQUIPO_RAYO.Habitaciones --OK
+ORDER BY hotel_id
+
+SELECT * FROM EQUIPO_RAYO.Estadias --OK
+
+SELECT * FROM EQUIPO_RAYO.Estadias_Habitaciones
+ORDER BY estadia_id
 
 
 
@@ -72,9 +77,9 @@ ORDER BY HOTEL_CALLE --Hay 424 habitaciones diferentes en total
 
 SELECT DISTINCT HOTEL_CALLE,HOTEL_NRO_CALLE FROM gd_esquema.Maestra WHERE HOTEL_CALLE IS NOT NULL --Hay 20 hoteles diferentes
 
-SELECT DISTINCT ESTADIA_CODIGO FROM gd_esquema.Maestra -- Hay 15689 estadias diferentes
+SELECT DISTINCT ESTADIA_CODIGO,ESTADIA_CANTIDAD_NOCHES,ESTADIA_FECHA_INI FROM gd_esquema.Maestra WHERE ESTADIA_CODIGO IS NOT NULL -- Hay 15688 estadias diferentes
+
 
 
 SELECT DISTINCT COMPRA_NUMERO FROM gd_esquema.Maestra WHERE HOTEL_CALLE IS NOT NULL --15688 Compras que son estadias diferentes
 SELECT DISTINCT COMPRA_NUMERO FROM gd_esquema.Maestra WHERE VUELO_CODIGO IS NOT NULL --4750 Compras que son pasajes 
-
