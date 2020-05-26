@@ -171,6 +171,27 @@ IF OBJECT_ID('EQUIPO_RAYO.Estadias_Habitaciones') IS NULL
 	)
 
 
+IF OBJECT_ID('EQUIPO_RAYO.Facturas') IS NULL
+	CREATE TABLE EQUIPO_RAYO.Facturas
+	(
+		factura_id INT IDENTITY PRIMARY KEY,
+		cliente_id INT FOREIGN KEY (cliente_id) REFERENCES EQUIPO_RAYO.Clientes(cliente_id) NOT NULL,
+		sucursal_id INT FOREIGN KEY (sucursal_id) REFERENCES EQUIPO_RAYO.Sucursales(sucursal_id) NOT NULL,
+		factura_fecha DATETIME2(3),
+		factura_numero DECIMAL(18,0),
+		factura_total DECIMAL(18,2)
+	) --Elegi DECIMAL(18,2) como tipo de dato del total por ser el tipo que usan los precios en las otras tablas
+
+IF OBJECT_ID('EQUIPO_RAYO.ItemFacturas') IS NULL
+	CREATE TABLE EQUIPO_RAYO.ItemFacturas
+	(
+		item_factura_id INT IDENTITY PRIMARY KEY,
+		estadia_id INT FOREIGN KEY (estadia_id) REFERENCES EQUIPO_RAYO.Estadias(estadia_id),
+		pasaje_id INT FOREIGN KEY (pasaje_id) REFERENCES EQUIPO_RAYO.Pasajes(pasaje_id),
+		factura_id INT FOREIGN KEY (factura_id) REFERENCES EQUIPO_RAYO.Facturas(factura_id) NOT NULL
+	) --esto ultimo cambio el der
+
+
 --=========================Migracion==============================================================================================================================
 
 
@@ -284,7 +305,7 @@ SELECT H.hotel_id,
 GROUP BY H.hotel_id,C.compra_id,E.ESTADIA_CODIGO,E.ESTADIA_FECHA_INI,E.ESTADIA_CANTIDAD_NOCHES
 
 
---Habitaciones por estadia (tabla intermedia)
+--Habitaciones por estadia (tabla intermedia) v1
 INSERT INTO EQUIPO_RAYO.Estadias_Habitaciones(estadia_id,habitacion_id)
 SELECT E.estadia_id,Hab.habitacion_id FROM gd_esquema.Maestra U
 	INNER JOIN EQUIPO_RAYO.Compras C ON C.compra_numero = U.COMPRA_NUMERO
@@ -293,9 +314,33 @@ SELECT E.estadia_id,Hab.habitacion_id FROM gd_esquema.Maestra U
 	WHERE U.ESTADIA_CODIGO IS NOT NULL
 GROUP BY E.estadia_id,Hab.habitacion_id
 
-
+--v2 Ninguna de las dos funciona
 INSERT INTO EQUIPO_RAYO.Estadias_Habitaciones(estadia_id,habitacion_id)
 SELECT E.estadia_id,Hab.habitacion_id FROM EQUIPO_RAYO.Estadias E
 	INNER JOIN EQUIPO_RAYO.Hoteles H ON H.hotel_id=E.hotel_id
 	INNER JOIN EQUIPO_RAYO.Habitaciones Hab ON Hab.hotel_id=H.hotel_id AND Hab.hotel_id = E.hotel_id
 GROUP BY E.estadia_id,Hab.habitacion_id
+
+
+--Facturas
+INSERT INTO EQUIPO_RAYO.Facturas(cliente_id,sucursal_id,factura_fecha,factura_numero,factura_total)
+SELECT 
+	   C.cliente_id,
+	   S.sucursal_id,
+	   F.FACTURA_FECHA,
+	   F.FACTURA_NRO,
+	   CASE
+		WHEN
+			F.HABITACION_PRECIO IS NULL
+			THEN 
+				F.PASAJE_PRECIO
+		WHEN
+			F.PASAJE_PRECIO IS NULL
+			THEN
+				F.HABITACION_PRECIO
+	   END
+FROM gd_esquema.Maestra F
+	INNER JOIN EQUIPO_RAYO.Clientes C ON C.cliente_dni=F.CLIENTE_DNI AND C.cliente_apellido=F.CLIENTE_APELLIDO and C.cliente_mail=F.CLIENTE_MAIL
+	INNER JOIN EQUIPO_RAYO.Sucursales S ON S.sucursal_direccion=F.SUCURSAL_DIR
+	WHERE F.CLIENTE_APELLIDO IS NOT NULL AND F.SUCURSAL_MAIL IS NOT NULL
+
