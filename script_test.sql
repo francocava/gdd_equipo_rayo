@@ -38,6 +38,10 @@ ORDER BY estadia_id
 
 SELECT * FROM EQUIPO_RAYO.Facturas --OK 
 
+SELECT * FROM EQUIPO_RAYO.ItemFacturas --OK 
+
+
+
 --====Tabla maestra
 
 SELECT DISTINCT CLIENTE_DNI,CLIENTE_MAIL FROM gd_esquema.Maestra WHERE CLIENTE_DNI IS NOT NULL --237522 clientes diferentes
@@ -87,3 +91,8 @@ SELECT DISTINCT COMPRA_NUMERO FROM gd_esquema.Maestra WHERE VUELO_CODIGO IS NOT 
 SELECT FACTURA_NRO,CLIENTE_DNI,CLIENTE_APELLIDO FROM gd_esquema.Maestra WHERE CLIENTE_APELLIDO IS NOT NULL --237522
 SELECT DISTINCT FACTURA_NRO,CLIENTE_DNI,CLIENTE_APELLIDO FROM gd_esquema.Maestra WHERE CLIENTE_APELLIDO IS NOT NULL --Da lo mismo que arriba por lo tanto 
 																													--una factura tiene 1 solo item 
+
+SELECT * FROM EQUIPO_RAYO.ItemFacturas WHERE item_factura_id ='1'
+SELECT * FROM EQUIPO_RAYO.Facturas WHERE factura_id='19072'
+SELECT * FROM EQUIPO_RAYO.Estadias WHERE estadia_id='9380'
+SELECT * FROM gd_esquema.Maestra WHERE FACTURA_NRO=60403643 --Todo coincide! 

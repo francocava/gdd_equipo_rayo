@@ -182,6 +182,8 @@ IF OBJECT_ID('EQUIPO_RAYO.Facturas') IS NULL
 		factura_total DECIMAL(18,2)
 	) --Elegi DECIMAL(18,2) como tipo de dato del total por ser el tipo que usan los precios en las otras tablas
 
+
+
 IF OBJECT_ID('EQUIPO_RAYO.ItemFacturas') IS NULL
 	CREATE TABLE EQUIPO_RAYO.ItemFacturas
 	(
@@ -331,7 +333,8 @@ SELECT
 	   F.FACTURA_NRO,
 	   CASE
 		WHEN
-			F.HABITACION_PRECIO IS NULL
+			F.HABITACION_PREC
+			IO IS NULL
 			THEN 
 				F.PASAJE_PRECIO
 		WHEN
@@ -343,4 +346,22 @@ FROM gd_esquema.Maestra F
 	INNER JOIN EQUIPO_RAYO.Clientes C ON C.cliente_dni=F.CLIENTE_DNI AND C.cliente_apellido=F.CLIENTE_APELLIDO and C.cliente_mail=F.CLIENTE_MAIL
 	INNER JOIN EQUIPO_RAYO.Sucursales S ON S.sucursal_direccion=F.SUCURSAL_DIR
 	WHERE F.CLIENTE_APELLIDO IS NOT NULL AND F.SUCURSAL_MAIL IS NOT NULL
+
+
+
+--ItemFacturas que son Estadias
+INSERT INTO EQUIPO_RAYO.ItemFacturas(estadia_id,pasaje_id,factura_id)
+SELECT E.estadia_id,NULL,F.factura_id FROM gd_esquema.Maestra U
+	INNER JOIN EQUIPO_RAYO.Facturas F ON F.factura_numero=U.FACTURA_NRO
+	INNER JOIN EQUIPO_RAYO.Estadias E ON E.estadia_codigo=U.ESTADIA_CODIGO
+	WHERE U.FACTURA_NRO IS NOT NULL
+GROUP BY E.estadia_id,F.factura_id
+
+--Que son pasajes
+INSERT INTO EQUIPO_RAYO.ItemFacturas(estadia_id,pasaje_id,factura_id)
+SELECT NULL,P.pasaje_id,F.factura_id FROM gd_esquema.Maestra U
+	INNER JOIN EQUIPO_RAYO.Facturas F ON F.factura_numero=U.FACTURA_NRO
+	INNER JOIN EQUIPO_RAYO.Pasajes P ON P.pasaje_codigo=U.PASAJE_CODIGO
+	WHERE U.FACTURA_NRO IS NOT NULL
+GROUP BY P.pasaje_id,F.factura_id
 
