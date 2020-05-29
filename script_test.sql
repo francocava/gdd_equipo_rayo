@@ -73,8 +73,6 @@ SELECT VUELO_CODIGO FROM gd_esquema.Maestra WHERE VUELO_CODIGO IS NOT NULL --504
 SELECT HOTEL_CALLE,HOTEL_NRO_CALLE FROM gd_esquema.Maestra WHERE HOTEL_CALLE IS NOT NULL --31376 operaciones con hoteles
 SELECT * FROM gd_esquema.Maestra --535613 total de operaciones entre los dos
 
-SELECT count(*) FROM gd_esquema.Maestra WHERE HABITACION_FRENTE IS NOT NULL -- devuelve 31376 Estadias_Habitaciones tiene que devolver este numero tambien
-
 SELECT DISTINCT HABITACION_FRENTE,HABITACION_NUMERO,HABITACION_PISO,HOTEL_NRO_CALLE,HOTEL_CALLE FROM gd_esquema.Maestra
 WHERE HOTEL_CALLE IS NOT NULL
 ORDER BY HOTEL_CALLE --Hay 424 habitaciones diferentes en total 
@@ -83,7 +81,17 @@ SELECT DISTINCT HOTEL_CALLE,HOTEL_NRO_CALLE FROM gd_esquema.Maestra WHERE HOTEL_
 
 SELECT DISTINCT ESTADIA_CODIGO,ESTADIA_CANTIDAD_NOCHES,ESTADIA_FECHA_INI FROM gd_esquema.Maestra WHERE ESTADIA_CODIGO IS NOT NULL -- Hay 15688 estadias diferentes
 
-
+SELECT ESTADIA_CODIGO,
+	   ESTADIA_CANTIDAD_NOCHES,
+	   EMPRESA_RAZON_SOCIAL,
+	   HABITACION_NUMERO,
+	   HABITACION_PISO,
+	   TIPO_HABITACION_DESC,
+	   HABITACION_PRECIO,
+	   CLIENTE_DNI
+FROM gd_esquema.Maestra WHERE HABITACION_COSTO IS NOT NULL AND CLIENTE_DNI IS NOT NULL 
+ORDER BY ESTADIA_CODIGO 
+--Conlusion: una estadia siempre esta dos veces una para la compra y otra para la venta POR LO TANTO Estadias_Habitaciones deberia tener 15688
 
 SELECT DISTINCT COMPRA_NUMERO FROM gd_esquema.Maestra WHERE HOTEL_CALLE IS NOT NULL --15688 Compras que son estadias diferentes
 SELECT DISTINCT COMPRA_NUMERO FROM gd_esquema.Maestra WHERE VUELO_CODIGO IS NOT NULL --4750 Compras que son pasajes 

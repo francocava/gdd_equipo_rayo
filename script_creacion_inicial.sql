@@ -307,20 +307,13 @@ SELECT H.hotel_id,
 GROUP BY H.hotel_id,C.compra_id,E.ESTADIA_CODIGO,E.ESTADIA_FECHA_INI,E.ESTADIA_CANTIDAD_NOCHES
 
 
---Habitaciones por estadia (tabla intermedia) v1
+--Habitaciones por estadia (tabla intermedia)
 INSERT INTO EQUIPO_RAYO.Estadias_Habitaciones(estadia_id,habitacion_id)
 SELECT E.estadia_id,Hab.habitacion_id FROM gd_esquema.Maestra U
 	INNER JOIN EQUIPO_RAYO.Compras C ON C.compra_numero = U.COMPRA_NUMERO
 	INNER JOIN EQUIPO_RAYO.Estadias E ON E.estadia_codigo = U.ESTADIA_CODIGO AND E.compra_id = C.compra_id
 	INNER JOIN EQUIPO_RAYO.Habitaciones Hab on Hab.hotel_id = E.hotel_id AND Hab.habitacion_numero = U.HABITACION_NUMERO AND Hab.habitacion_piso = U.HABITACION_PISO
 	WHERE U.ESTADIA_CODIGO IS NOT NULL
-GROUP BY E.estadia_id,Hab.habitacion_id
-
---v2 Ninguna de las dos funciona
-INSERT INTO EQUIPO_RAYO.Estadias_Habitaciones(estadia_id,habitacion_id)
-SELECT E.estadia_id,Hab.habitacion_id FROM EQUIPO_RAYO.Estadias E
-	INNER JOIN EQUIPO_RAYO.Hoteles H ON H.hotel_id=E.hotel_id
-	INNER JOIN EQUIPO_RAYO.Habitaciones Hab ON Hab.hotel_id=H.hotel_id AND Hab.hotel_id = E.hotel_id
 GROUP BY E.estadia_id,Hab.habitacion_id
 
 
@@ -333,8 +326,7 @@ SELECT
 	   F.FACTURA_NRO,
 	   CASE
 		WHEN
-			F.HABITACION_PREC
-			IO IS NULL
+			F.HABITACION_PRECIO IS NULL
 			THEN 
 				F.PASAJE_PRECIO
 		WHEN
