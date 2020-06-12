@@ -112,6 +112,7 @@ IF OBJECT_ID('EQUIPO_RAYO.Vuelos') IS NULL
 		vuelo_llegada DATETIME2(3)
 	)
 
+--Pasajes
 IF OBJECT_ID('EQUIPO_RAYO.Pasajes') IS NULL
 	CREATE TABLE EQUIPO_RAYO.Pasajes
 	(
@@ -125,6 +126,7 @@ IF OBJECT_ID('EQUIPO_RAYO.Pasajes') IS NULL
 	)
 
 
+--Hoteles
 IF OBJECT_ID('EQUIPO_RAYO.Hoteles') IS NULL
 	CREATE TABLE EQUIPO_RAYO.Hoteles
 	(
@@ -136,6 +138,7 @@ IF OBJECT_ID('EQUIPO_RAYO.Hoteles') IS NULL
 	)
 
 
+--Habitaciones
 IF OBJECT_ID('EQUIPO_RAYO.Habitaciones') IS NULL
 	CREATE TABLE EQUIPO_RAYO.Habitaciones
 	(
@@ -149,7 +152,7 @@ IF OBJECT_ID('EQUIPO_RAYO.Habitaciones') IS NULL
 		habitacion_precio DECIMAL(18,2)
 	)
 
-
+--Estadias
 IF OBJECT_ID('EQUIPO_RAYO.Estadias') IS NULL
 	CREATE TABLE EQUIPO_RAYO.Estadias
 	(
@@ -162,6 +165,7 @@ IF OBJECT_ID('EQUIPO_RAYO.Estadias') IS NULL
 	)
 
 
+--Tabla intermedia que tiene las habitaciones por estadia 
 IF OBJECT_ID('EQUIPO_RAYO.Estadias_Habitaciones') IS NULL
 	CREATE TABLE EQUIPO_RAYO.Estadias_Habitaciones
 	(
@@ -170,7 +174,7 @@ IF OBJECT_ID('EQUIPO_RAYO.Estadias_Habitaciones') IS NULL
 		PRIMARY KEY(estadia_id,habitacion_id)
 	)
 
-
+--Facturas
 IF OBJECT_ID('EQUIPO_RAYO.Facturas') IS NULL
 	CREATE TABLE EQUIPO_RAYO.Facturas
 	(
@@ -183,7 +187,7 @@ IF OBJECT_ID('EQUIPO_RAYO.Facturas') IS NULL
 	) --Elegi DECIMAL(18,2) como tipo de dato del total por ser el tipo que usan los precios en las otras tablas
 
 
-
+--ItemFacturas
 IF OBJECT_ID('EQUIPO_RAYO.ItemFacturas') IS NULL
 	CREATE TABLE EQUIPO_RAYO.ItemFacturas
 	(
@@ -191,7 +195,7 @@ IF OBJECT_ID('EQUIPO_RAYO.ItemFacturas') IS NULL
 		estadia_id INT FOREIGN KEY (estadia_id) REFERENCES EQUIPO_RAYO.Estadias(estadia_id),
 		pasaje_id INT FOREIGN KEY (pasaje_id) REFERENCES EQUIPO_RAYO.Pasajes(pasaje_id),
 		factura_id INT FOREIGN KEY (factura_id) REFERENCES EQUIPO_RAYO.Facturas(factura_id) NOT NULL
-	) --esto ultimo cambio el der
+	) 
 
 
 --=========================Migracion==============================================================================================================================
@@ -224,7 +228,7 @@ SELECT E.empresa_id,A.AVION_IDENTIFICADOR,A.AVION_MODELO FROM gd_esquema.Maestra
 GROUP BY E.empresa_id,A.AVION_IDENTIFICADOR,A.AVION_MODELO
 
 
---Butacas  --Averiguar que onda el inner 
+--Butacas 
 INSERT INTO EQUIPO_RAYO.Butacas(avion_id,butaca_numero,butaca_tipo)
 SELECT A.avion_id,B.BUTACA_NUMERO,B.BUTACA_TIPO FROM gd_esquema.Maestra B 
 	INNER JOIN EQUIPO_RAYO.Aviones A ON A.avion_identificador = B.AVION_IDENTIFICADOR WHERE B.AVION_IDENTIFICADOR IS NOT NULL
@@ -341,7 +345,7 @@ FROM gd_esquema.Maestra F
 
 
 
---ItemFacturas que son Estadias
+--ItemFacturas que son Estadias 
 INSERT INTO EQUIPO_RAYO.ItemFacturas(estadia_id,pasaje_id,factura_id)
 SELECT E.estadia_id,NULL,F.factura_id FROM gd_esquema.Maestra U
 	INNER JOIN EQUIPO_RAYO.Facturas F ON F.factura_numero=U.FACTURA_NRO
