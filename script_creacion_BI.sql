@@ -40,7 +40,9 @@ IF OBJECT_ID('EQUIPO_RAYO.Dim_Proveedores') IS NULL
 	CREATE TABLE EQUIPO_RAYO.Dim_Proveedores
 	(
 		proveedor_id INT PRIMARY KEY,
-		proveedor_razon_social NVARCHAR(255)
+		proveedor_direccion NVARCHAR(255),
+		proveedor_mail NVARCHAR(255),
+		proveedor_telefono DECIMAL(18,0)
 	)
 
 IF OBJECT_ID('EQUIPO_RAYO.Dim_Aviones') IS NULL
@@ -51,8 +53,30 @@ IF OBJECT_ID('EQUIPO_RAYO.Dim_Aviones') IS NULL
 		avion_modelo NVARCHAR(50)
 	)
 
+IF OBJECT_ID('EQUIPO_RAYO.Dim_Tipo_Pasajes') IS NULL
+	CREATE TABLE EQUIPO_RAYO.Dim_Tipo_Pasajes
+	(
+		tipo_pasaje_id INT IDENTITY PRIMARY KEY,
+		tipo_pasaje_costo DECIMAL(18,2),
+		tipo_pasaje_precio DECIMAL(18,2),
+		tipo_pasaje_tipo NVARCHAR(255)
+	)
+
+IF OBJECT_ID('EQUIPO_RAYO.Dim_Hab_Tipos') IS NULL
+	CREATE TABLE EQUIPO_RAYO.Dim_Hab_Tipos
+	(
+		hab_tipo_id INT IDENTITY PRIMARY KEY,
+		hab_tipo_hotel NVARCHAR(255),
+		hab_tipo_direc NVARCHAR(255),
+		hab_tipo_estrellas DECIMAL(18,0),
+		hab_tipo_cant_camas INT
+	)
+
+
+
 
 --=========Migracion a BI
+
 
 ---Dimension Clientes
 INSERT INTO EQUIPO_RAYO.Dim_Clientes(cliente_id,cliente_dni,cliente_nombre,cliente_apellido,cliente_fecha_nac,cliente_mail,cliente_telefono)
@@ -67,8 +91,8 @@ FROM EQUIPO_RAYO.Clientes
 
 
 ---Dimension Proveedores
-INSERT INTO EQUIPO_RAYO.Dim_Proveedores(proveedor_id,proveedor_razon_social)
-SELECT empresa_id,empresa_razon_social FROM EQUIPO_RAYO.Empresas
+INSERT INTO EQUIPO_RAYO.Dim_Proveedores(proveedor_id,proveedor_direccion,proveedor_mail,proveedor_telefono)
+SELECT sucursal_id,sucursal_direccion,sucursal_mail,sucursal_telefono FROM EQUIPO_RAYO.Sucursales
 
 
 --Dimension Aviones
@@ -76,48 +100,25 @@ INSERT INTO EQUIPO_RAYO.Dim_Aviones(avion_id,avion_identificador,avion_modelo)
 SELECT avion_id,avion_identificador,avion_modelo FROM EQUIPO_RAYO.Aviones
 
 
-
----Dimension tiempo, utilizamos los tiempos de las facturas y las compras 
-GO
-CREATE PROCEDURE llenarDimTiempo
-AS
-BEGIN
-	DECLARE @fecha DATETIME2(3)
-
-	DECLARE C_Fechas CURSOR FOR 
-	SELECT DISTINCT(compra_fecha)
-           FROM EQUIPO_RAYO.Compras
-	UNION
-	SELECT DISTINCT(factura_fecha)
-           FROM EQUIPO_RAYO.Facturas
-
-	OPEN C_Fechas
-
-	FETCH NEXT FROM C_Fechas INTO @fecha
-	WHILE @@FETCH_STATUS=0
-	BEGIN
-		IF NOT EXISTS (SELECT * FROM EQUIPO_RAYO.Dim_Tiempo WHERE tiempo_fecha=@fecha)
-			BEGIN
-				INSERT INTO EQUIPO_RAYO.Dim_Tiempo(tiempo_fecha,tiempo_anio,tiempo_mes,tiempo_dia) 
-				VALUES(@fecha,YEAR(@fecha),MONTH(@fecha),DAY(@fecha))
-			END
-	FETCH NEXT FROM C_Fechas INTO @fecha
-	END
-
-	CLOSE C_Fechas
-	DEALLOCATE C_Fechas
-END
-GO
-
-exec llenarDimTiempo
+--Dimension Tiempo
+INSERT INTO EQUIPO_RAYO.Dim_Tiempo(tiempo_fecha,tiempo_anio,tiempo_mes,tiempo_dia)
+SELECT DISTINCT(factura_fecha),
+	   YEAR(factura_fecha),
+	   MONTH(factura_fecha),
+	   DAY(factura_fecha)
+FROM EQUIPO_RAYO.Facturas
 
 
-
-
-
+--Dimension tipo pasaje
+INSERT INTO EQUIPO_RAYO.Dim_Tipo_Pasajes(tipo_pasaje_costo,tipo_pasaje_precio,tipo_pasaje_tipo)
+SELECT P.pasaje_costo,P.pasaje_precio,B.butaca_tipo
+FROM EQUIPO_RAYO.Butacas B
+	JOIN EQUIPO_RAYO.Pasajes P ON P.butaca_id = B.butaca_id
 
 ---Pruebas
+
 SELECT * FROM EQUIPO_RAYO.Dim_Clientes
+SELECT * FROM EQUIPO_RAYO.Dim_Tipo_Pasajes
 
 SELECT * FROM EQUIPO_RAYO.Dim_Tiempo ORDER BY tiempo_fecha
 SELECT DISTINCT(tiempo_fecha) FROM EQUIPO_RAYO.Dim_Tiempo
