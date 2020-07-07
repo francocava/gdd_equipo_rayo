@@ -61,10 +61,11 @@ IF OBJECT_ID('EQUIPO_RAYO.Dim_Aviones') IS NULL
 		avion_modelo NVARCHAR(50)
 	)
 
+--Aca solo consideramos los pasajes que fueron vendidos por lo tanto se pueden vincular a un cliente
 IF OBJECT_ID('EQUIPO_RAYO.Dim_Tipo_Pasajes') IS NULL
 	CREATE TABLE EQUIPO_RAYO.Dim_Tipo_Pasajes
 	(
-		tipo_pasaje_id INT IDENTITY PRIMARY KEY,
+		tipo_pasaje_id INT PRIMARY KEY,
 		tipo_pasaje_costo DECIMAL(18,2),
 		tipo_pasaje_precio DECIMAL(18,2),
 		tipo_pasaje_tipo NVARCHAR(255)
@@ -73,7 +74,7 @@ IF OBJECT_ID('EQUIPO_RAYO.Dim_Tipo_Pasajes') IS NULL
 IF OBJECT_ID('EQUIPO_RAYO.Dim_Hab_Tipos') IS NULL
 	CREATE TABLE EQUIPO_RAYO.Dim_Hab_Tipos
 	(
-		hab_tipo_id INT IDENTITY PRIMARY KEY,
+		hab_tipo_id INT PRIMARY KEY,
 		hab_tipo_hotel NVARCHAR(255),
 		hab_tipo_direc NVARCHAR(255),
 		hab_tipo_estrellas DECIMAL(18,0),
@@ -99,6 +100,9 @@ IF OBJECT_ID('EQUIPO_RAYO.Hechos_Ventas') IS NULL
 		precio DECIMAL(18,2)
 		PRIMARY KEY(cliente_id,tiempo_id,proveedor_id,hab_tipo_id,avion_id,tipo_pasaje_id)
 	)
+
+	drop table EQUIPO_RAYO.Hechos_Ventas
+	drop table EQUIPO_RAYO.Dim_Tipo_Pasajes
 --=========Migracion a BI
 
 
@@ -134,15 +138,17 @@ FROM EQUIPO_RAYO.Facturas
 
 
 --Dimension tipo pasaje
-INSERT INTO EQUIPO_RAYO.Dim_Tipo_Pasajes(tipo_pasaje_costo,tipo_pasaje_precio,tipo_pasaje_tipo)
-SELECT P.pasaje_costo,P.pasaje_precio,B.butaca_tipo
+INSERT INTO EQUIPO_RAYO.Dim_Tipo_Pasajes(tipo_pasaje_id,tipo_pasaje_costo,tipo_pasaje_precio,tipo_pasaje_tipo)
+SELECT P.pasaje_id,P.pasaje_costo,P.pasaje_precio,B.butaca_tipo
 FROM EQUIPO_RAYO.Butacas B
 	JOIN EQUIPO_RAYO.Pasajes P ON P.butaca_id = B.butaca_id
+	JOIN EQUIPO_RAYO.ItemFacturas it ON it.pasaje_id=P.pasaje_id
 
 
 --Dimension tipo habitaciones
-INSERT INTO EQUIPO_RAYO.Dim_Hab_Tipos(hab_tipo_hotel,hab_tipo_direc,hab_tipo_estrellas,hab_tipo_cant_camas,hab_tipo_costo,hab_tipo_precio)
-SELECT E.empresa_razon_social,
+INSERT INTO EQUIPO_RAYO.Dim_Hab_Tipos(hab_tipo_id,hab_tipo_hotel,hab_tipo_direc,hab_tipo_estrellas,hab_tipo_cant_camas,hab_tipo_costo,hab_tipo_precio)
+SELECT Hab.habitacion_id,
+       E.empresa_razon_social,
        CONCAT(H.hotel_calle,' ',H.hotel_nro_calle),
 	   H.hotel_estrellas,
 	   dbo.cantCamas(Hab.habitacion_id),
@@ -164,14 +170,61 @@ SELECT DISTINCT ruta_ciudad_destino FROM EQUIPO_RAYO.Rutas
 UNION
 SELECT DISTINCT ruta_ciudad_origen FROM EQUIPO_RAYO.Rutas
 
---Hechos
+--Hechos Ventas para pasajes
 INSERT INTO EQUIPO_RAYO.Hechos_Ventas(cliente_id,tiempo_id,proveedor_id,hab_tipo_id,avion_id,tipo_pasaje_id,ruta_id,ciudad_id,precio)
-SELECT C.cliente_id,T.tiempo_id,1,1,1,1,1,1,F.factura_total
+SELECT C.cliente_id,
+       T.tiempo_id,
+	   F.sucursal_id,
+	   0,
+	   V.avion_id,
+	   Pa.pasaje_id,
+	   V.ruta_id,
+	   0,
+	   F.factura_total
 FROM EQUIPO_RAYO.Dim_Clientes C 
 	JOIN EQUIPO_RAYO.Facturas F ON F.cliente_id=C.cliente_id
 	JOIN EQUIPO_RAYO.Dim_Tiempo T ON T.tiempo_fecha=F.factura_fecha
+	JOIN EQUIPO_RAYO.ItemFacturas it ON it.item_factura_id=F.factura_id
+	JOIN EQUIPO_RAYO.Pasajes Pa ON Pa.pasaje_id=it.pasaje_id
+	JOIN EQUIPO_RAYO.Vuelos V ON V.vuelo_id=Pa.vuelo_id
+WHERE it.estadia_id IS NULL
+
+--Hechos Ventas para hoteles
+INSERT INTO EQUIPO_RAYO.Hechos_Ventas(cliente_id,tiempo_id,proveedor_id,hab_tipo_id,avion_id,tipo_pasaje_id,ruta_id,ciudad_id,precio)
+SELECT C.cliente_id,
+       T.tiempo_id,
+	   F.sucursal_id,
+	   EH.habitacion_id,
+	   0,
+	   0,
+	   0,
+	   0,
+	   F.factura_total
+FROM EQUIPO_RAYO.Dim_Clientes C 
+	JOIN EQUIPO_RAYO.Facturas F ON F.cliente_id=C.cliente_id
+	JOIN EQUIPO_RAYO.Dim_Tiempo T ON T.tiempo_fecha=F.factura_fecha
+	JOIN EQUIPO_RAYO.ItemFacturas it ON it.item_factura_id=F.factura_id
+	JOIN EQUIPO_RAYO.Estadias_Habitaciones EH ON EH.estadia_id=it.estadia_id
+WHERE it.pasaje_id IS NULL
+
+
+--Agrego IDs 0 para evitar NULLS en Hechos Ventas
+
+INSERT INTO EQUIPO_RAYO.Dim_Hab_Tipos VALUES(0,' ',' ',0,0,0,0) --Si me jode con los promedios o algo asi meto todo NULL
+
+SET IDENTITY_INSERT EQUIPO_RAYO.Dim_Ciudades ON
+INSERT INTO EQUIPO_RAYO.Dim_Ciudades(ciudad_id,ciudad_nombre) VALUES(0,' ')
+SET IDENTITY_INSERT EQUIPO_RAYO.Dim_Ciudades OFF
+
+INSERT INTO EQUIPO_RAYO.Dim_Aviones VALUES (0,'','')
+
+INSERT INTO EQUIPO_RAYO.Dim_Tipo_Pasajes VALUES (0,0,0,'')
+
+INSERT INTO EQUIPO_RAYO.Dim_Rutas VALUES (0,'','')
 
 --Funciones
+
+--Devuelve la cantidad de camas que tiene una habitacion
 GO
 CREATE FUNCTION cantCamas(@habitacion INT) RETURNS INT
 AS
@@ -207,6 +260,8 @@ SELECT * FROM EQUIPO_RAYO.Dim_Ciudades
 
 SELECT * FROM EQUIPO_RAYO.Dim_Clientes
 SELECT * FROM EQUIPO_RAYO.Dim_Tipo_Pasajes
+SELECT * FROM EQUIPO_RAYO.Pasajes
+
 
 
 SELECT * FROM EQUIPO_RAYO.Dim_Tiempo ORDER BY tiempo_fecha
@@ -218,3 +273,15 @@ SELECT hotel_id,CONCAT(hotel_calle,' ',hotel_nro_calle) FROM EQUIPO_RAYO.Hoteles
 SELECT dbo.cantCamas('314')
 
 SELECT * FROM EQUIPO_RAYO.Habitaciones --La 1 tiene tipo 1,King OK / La 184 tiene 3,Simple OK / La 314 tiene 4,Cuadruple OK
+
+SELECT * FROM EQUIPO_RAYO.Dim_Hab_Tipos
+
+drop table EQUIPO_RAYO.Dim_Hab_Tipos
+
+SELECT * FROM EQUIPO_RAYO.Dim_Tipo_Pasajes
+
+
+
+--221834
+SELECT * FROM EQUIPO_RAYO.Pasajes P
+	JOIN EQUIPO_RAYO.ItemFacturas it ON it.pasaje_id=P.pasaje_id
