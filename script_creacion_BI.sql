@@ -25,23 +25,23 @@ IF OBJECT_ID('EQUIPO_RAYO.Dim_Tiempo') IS NULL
 		tiempo_dia INT
 	)
 
-/* 
-IF OBJECT_ID('EQUIPO_RAYO.Dim_Rutas') IS NULL ---------- No es al pedo esta tabla si
-	CREATE TABLE EQUIPO_RAYO.Dim_Rutas ----------------- tenemos la dim_ciudades??
+
+IF OBJECT_ID('EQUIPO_RAYO.Dim_Rutas') IS NULL
+	CREATE TABLE EQUIPO_RAYO.Dim_Rutas 
 	(
-		ruta_id INT IDENTITY PRIMARY KEY
-
-
+		ruta_id INT PRIMARY KEY,
+		ruta_origen NVARCHAR(255),
+		ruta_destino NVARCHAR(255)
 	)
+
 
 IF OBJECT_ID('EQUIPO_RAYO.Dim_Ciudades') IS NULL
 	CREATE TABLE EQUIPO_RAYO.Dim_Ciudades 
 	(
-		ciudad_id INT IDENTITY PRIMARY KEY
-
-
+		ciudad_id INT IDENTITY PRIMARY KEY,
+		ciudad_nombre NVARCHAR(255)
 	)
-*/
+
 
 
 IF OBJECT_ID('EQUIPO_RAYO.Dim_Proveedores') IS NULL
@@ -94,10 +94,11 @@ IF OBJECT_ID('EQUIPO_RAYO.Hechos_Ventas') IS NULL
 		hab_tipo_id INT FOREIGN KEY (hab_tipo_id) REFERENCES EQUIPO_RAYO.Dim_Hab_Tipos(hab_tipo_id),
 		avion_id INT FOREIGN KEY (avion_id) REFERENCES EQUIPO_RAYO.Dim_Aviones(avion_id),
 		tipo_pasaje_id INT FOREIGN KEY (tipo_pasaje_id) REFERENCES EQUIPO_RAYO.Dim_Tipo_Pasajes(tipo_pasaje_id),
+		ruta_id INT FOREIGN KEY (ruta_id) REFERENCES EQUIPO_RAYO.Dim_Rutas(ruta_id),
+		ciudad_id INT FOREIGN KEY (ciudad_id) REFERENCES EQUIPO_RAYO.Dim_Ciudades(ciudad_id),
 		precio DECIMAL(18,2)
 		PRIMARY KEY(cliente_id,tiempo_id,proveedor_id,hab_tipo_id,avion_id,tipo_pasaje_id)
 	)
-
 --=========Migracion a BI
 
 
@@ -152,8 +153,23 @@ FROM EQUIPO_RAYO.Empresas E
 	JOIN EQUIPO_RAYO.Habitaciones Hab ON Hab.hotel_id=H.hotel_id
 
 
+--Rutas
+INSERT INTO EQUIPO_RAYO.Dim_Rutas(ruta_id,ruta_origen,ruta_destino)
+SELECT ruta_id,ruta_ciudad_origen,ruta_ciudad_destino FROM EQUIPO_RAYO.Rutas
+
+
+--Ciudades
+INSERT INTO EQUIPO_RAYO.Dim_Ciudades(ciudad_nombre)
+SELECT DISTINCT ruta_ciudad_destino FROM EQUIPO_RAYO.Rutas
+UNION
+SELECT DISTINCT ruta_ciudad_origen FROM EQUIPO_RAYO.Rutas
+
 --Hechos
-INSERT INTO EQUIPO_RAYO.Hechos_Ventas()
+INSERT INTO EQUIPO_RAYO.Hechos_Ventas(cliente_id,tiempo_id,proveedor_id,hab_tipo_id,avion_id,tipo_pasaje_id,ruta_id,ciudad_id,precio)
+SELECT C.cliente_id,T.tiempo_id,1,1,1,1,1,1,F.factura_total
+FROM EQUIPO_RAYO.Dim_Clientes C 
+	JOIN EQUIPO_RAYO.Facturas F ON F.cliente_id=C.cliente_id
+	JOIN EQUIPO_RAYO.Dim_Tiempo T ON T.tiempo_fecha=F.factura_fecha
 
 --Funciones
 GO
@@ -180,12 +196,22 @@ GO
 
 ---Pruebas
 
+SELECT * FROM EQUIPO_RAYO.Hechos_Ventas
+
+SELECT T.tiempo_anio,T.tiempo_mes,AVG(HV.precio) FROM EQUIPO_RAYO.Hechos_Ventas HV
+JOIN EQUIPO_RAYO.Dim_Tiempo T ON T.tiempo_id= HV.tiempo_id
+GROUP BY T.tiempo_anio,T.tiempo_mes
+
+
+SELECT * FROM EQUIPO_RAYO.Dim_Ciudades
+
 SELECT * FROM EQUIPO_RAYO.Dim_Clientes
 SELECT * FROM EQUIPO_RAYO.Dim_Tipo_Pasajes
 
+
 SELECT * FROM EQUIPO_RAYO.Dim_Tiempo ORDER BY tiempo_fecha
 SELECT DISTINCT(tiempo_fecha) FROM EQUIPO_RAYO.Dim_Tiempo
-DROP TABLE EQUIPO_RAYO.Dim_Tiempo
+
 
 SELECT hotel_id,CONCAT(hotel_calle,' ',hotel_nro_calle) FROM EQUIPO_RAYO.Hoteles
 
