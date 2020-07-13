@@ -25,16 +25,6 @@ IF OBJECT_ID('EQUIPO_RAYO.Dim_Clientes') IS NULL
 	)
 GO
 
-IF OBJECT_ID('EQUIPO_RAYO.Dim_Tiempo') IS NULL
-	CREATE TABLE EQUIPO_RAYO.Dim_Tiempo
-	(
-		tiempo_id INT IDENTITY PRIMARY KEY,
-		tiempo_fecha DATETIME2(3),
-		tiempo_anio INT,
-		tiempo_mes INT,
-		tiempo_dia INT
-	)
-
 
 IF OBJECT_ID('EQUIPO_RAYO.Dim_Rutas') IS NULL
 	CREATE TABLE EQUIPO_RAYO.Dim_Rutas 
@@ -96,21 +86,40 @@ IF OBJECT_ID('EQUIPO_RAYO.Dim_Hab_Tipos') IS NULL
 	)
 
 
-IF OBJECT_ID('EQUIPO_RAYO.Hechos_Ventas') IS NULL
-	CREATE TABLE EQUIPO_RAYO.Hechos_Ventas
+IF OBJECT_ID('EQUIPO_RAYO.Hechos_Ventas_Pasajes') IS NULL
+	CREATE TABLE EQUIPO_RAYO.Hechos_Ventas_Pasajes
 	(
-		cliente_id INT FOREIGN KEY (cliente_id) REFERENCES EQUIPO_RAYO.Dim_Clientes(cliente_id) NOT NULL,
-		tiempo_id INT FOREIGN KEY (tiempo_id) REFERENCES EQUIPO_RAYO.Dim_Tiempo(tiempo_id) NOT NULL,
-		proveedor_id INT FOREIGN KEY (proveedor_id) REFERENCES EQUIPO_RAYO.Dim_Proveedores(proveedor_id) NOT NULL,
-		hab_tipo_id INT FOREIGN KEY (hab_tipo_id) REFERENCES EQUIPO_RAYO.Dim_Hab_Tipos(hab_tipo_id),
+		anio CHAR(4),
+		mes CHAR(2),
+		cliente_id INT FOREIGN KEY (cliente_id) REFERENCES EQUIPO_RAYO.Dim_Clientes(cliente_id),
+		proveedor_id INT FOREIGN KEY (proveedor_id) REFERENCES EQUIPO_RAYO.Dim_Proveedores(proveedor_id),
 		avion_id INT FOREIGN KEY (avion_id) REFERENCES EQUIPO_RAYO.Dim_Aviones(avion_id),
 		tipo_pasaje_id INT FOREIGN KEY (tipo_pasaje_id) REFERENCES EQUIPO_RAYO.Dim_Tipo_Pasajes(tipo_pasaje_id),
 		ruta_id INT FOREIGN KEY (ruta_id) REFERENCES EQUIPO_RAYO.Dim_Rutas(ruta_id),
 		ciudad_id INT FOREIGN KEY (ciudad_id) REFERENCES EQUIPO_RAYO.Dim_Ciudades(ciudad_id),
-		costo DECIMAL(18,2),
-		precio_venta DECIMAL(18,2),
-		PRIMARY KEY(cliente_id,tiempo_id,proveedor_id,hab_tipo_id,avion_id,tipo_pasaje_id,ruta_id,ciudad_id)
+		prom_compra DECIMAL(18,2),
+		prom_venta DECIMAL(18,2),
+		ganacias_pasajes DECIMAL(18,2),
+		CONSTRAINT PK_Hechos_Pasajes
+		PRIMARY KEY(anio,mes,cliente_id,proveedor_id,avion_id,tipo_pasaje_id,ruta_id,ciudad_id)
 	)
+
+IF OBJECT_ID('EQUIPO_RAYO.Hechos_Ventas_Estadias') IS NULL
+	CREATE TABLE EQUIPO_RAYO.Hechos_Ventas_Estadias
+	(
+		anio CHAR(4),
+		mes CHAR(2),
+		cliente_id INT FOREIGN KEY (cliente_id) REFERENCES EQUIPO_RAYO.Dim_Clientes(cliente_id),
+		proveedor_id INT FOREIGN KEY (proveedor_id) REFERENCES EQUIPO_RAYO.Dim_Proveedores(proveedor_id),
+		hab_tipo_id INT FOREIGN KEY (hab_tipo_id) REFERENCES EQUIPO_RAYO.Dim_Hab_Tipos(hab_tipo_id),
+		prom_compra DECIMAL(18,2),
+		prom_venta DECIMAL(18,2),
+		cant_camas INT,
+		ganacias_estadias DECIMAL(18,2),
+		CONSTRAINT PK_Hechos_Estadias
+		PRIMARY KEY(anio,mes,cliente_id,proveedor_id,hab_tipo_id)
+	) 
+
 
 ---==Funciones
 
@@ -136,7 +145,25 @@ BEGIN
 END
 GO
 
+GO
+CREATE FUNCTION AVG_Compra(@fecha DATETIME2(3)) RETURNS DECIMAL(18,2)
+AS
+BEGIN
+	RETURN (SELECT AVG(P.pasaje_costo) FROM EQUIPO_RAYO.Compras C 
+	        JOIN EQUIPO_RAYO.Pasajes P ON P.compra_id=C.compra_id
+	        WHERE YEAR(C.compra_fecha)=YEAR(@fecha) AND MONTH(C.compra_fecha)=MONTH(@fecha))
+END
 
+GO
+CREATE FUNCTION AVG_Venta(@fecha DATETIME2(3)) RETURNS DECIMAL(18,2)
+AS
+BEGIN
+	RETURN (SELECT AVG(P.pasaje_precio) FROM EQUIPO_RAYO.Pasajes P 
+			JOIN EQUIPO_RAYO.ItemFacturas it ON it.pasaje_id=P.pasaje_id
+	        JOIN EQUIPO_RAYO.Facturas F ON F.factura_id=it.item_factura_id
+	        WHERE YEAR(F.factura_fecha)=YEAR(@fecha) AND MONTH(F.factura_fecha)=MONTH(@fecha))
+END
+GO
 
 --=========Migracion a BI
 
@@ -221,54 +248,56 @@ INSERT INTO EQUIPO_RAYO.Dim_Tipo_Pasajes VALUES (0,0,0,'')
 
 INSERT INTO EQUIPO_RAYO.Dim_Rutas VALUES (0,'','')
 
+----
 
---Hechos Ventas para pasajes
-INSERT INTO EQUIPO_RAYO.Hechos_Ventas(cliente_id,tiempo_id,proveedor_id,hab_tipo_id,avion_id,tipo_pasaje_id,ruta_id,ciudad_id,costo,precio_venta)
-SELECT C.cliente_id,
-       T.tiempo_id,
+INSERT INTO EQUIPO_RAYO.Hechos_Ventas_Pasajes(anio,mes,cliente_id,proveedor_id,avion_id,tipo_pasaje_id,ruta_id,ciudad_id,prom_compra,prom_venta,ganacias_pasajes)
+SELECT 
+       YEAR(F.factura_fecha),
+	   MONTH(F.factura_fecha),
+       C.cliente_id,
 	   F.sucursal_id,
-	   0,
 	   V.avion_id,
 	   Pa.pasaje_id,
 	   V.ruta_id,
-	   (SELECT ciudad_id FROM EQUIPO_RAYO.Dim_Ciudades WHERE ciudad_nombre LIKE ruta_ciudad_destino),
+	   Ci.ciudad_id,
 	   Pa.pasaje_costo,
-	   F.factura_total
+	   F.factura_total,
+	   (Pa.pasaje_precio-Pa.pasaje_costo)
 FROM EQUIPO_RAYO.Dim_Clientes C 
 	JOIN EQUIPO_RAYO.Facturas F ON F.cliente_id=C.cliente_id
-	JOIN EQUIPO_RAYO.Dim_Tiempo T ON T.tiempo_fecha=F.factura_fecha
 	JOIN EQUIPO_RAYO.ItemFacturas it ON it.item_factura_id=F.factura_id
 	JOIN EQUIPO_RAYO.Pasajes Pa ON Pa.pasaje_id=it.pasaje_id
 	JOIN EQUIPO_RAYO.Vuelos V ON V.vuelo_id=Pa.vuelo_id
 	JOIN EQUIPO_RAYO.Rutas Ru ON Ru.ruta_id=V.ruta_id
+	JOIN EQUIPO_RAYO.Dim_Ciudades Ci ON Ci.ciudad_nombre LIKE Ru.ruta_ciudad_destino
 WHERE it.estadia_id IS NULL
+--GROUP BY YEAR(F.factura_fecha),MONTH(F.factura_fecha),C.cliente_id,F.sucursal_id,V.avion_id,Pa.pasaje_id,V.ruta_id,Ci.ciudad_id
 
 
---Hechos Ventas para hoteles
-INSERT INTO EQUIPO_RAYO.Hechos_Ventas(cliente_id,tiempo_id,proveedor_id,hab_tipo_id,avion_id,tipo_pasaje_id,ruta_id,ciudad_id,costo,precio_venta)
-SELECT C.cliente_id,
-       T.tiempo_id,
+INSERT INTO EQUIPO_RAYO.Hechos_Ventas_Estadias(anio,mes,cliente_id,proveedor_id,hab_tipo_id,prom_compra,prom_venta,cant_camas,ganacias_estadias)
+SELECT 
+       YEAR(F.factura_fecha),
+	   MONTH(F.factura_fecha),
+       C.cliente_id,
 	   F.sucursal_id,
 	   EH.habitacion_id,
-	   0,
-	   0,
-	   0,
-	   0,
-	   (SELECT h1.habitacion_costo FROM EQUIPO_RAYO.Habitaciones h1 WHERE h1.habitacion_id=EH.habitacion_id), --Subquery que devuelve el costo de una habitacion en particular
-	   F.factura_total
+	   H.habitacion_costo,
+	   F.factura_total,
+	   dbo.cantCamas(EH.habitacion_id),
+	   (F.factura_total-H.habitacion_costo)
 FROM EQUIPO_RAYO.Dim_Clientes C 
 	JOIN EQUIPO_RAYO.Facturas F ON F.cliente_id=C.cliente_id
-	JOIN EQUIPO_RAYO.Dim_Tiempo T ON T.tiempo_fecha=F.factura_fecha
 	JOIN EQUIPO_RAYO.ItemFacturas it ON it.item_factura_id=F.factura_id
 	JOIN EQUIPO_RAYO.Estadias_Habitaciones EH ON EH.estadia_id=it.estadia_id
+	JOIN EQUIPO_RAYO.Habitaciones H on H.habitacion_id=EH.habitacion_id
 WHERE it.pasaje_id IS NULL
 
 
 
-/*
+/*s
 ---Pruebas
 
-SELECT * FROM EQUIPO_RAYO.Hechos_Ventas
+SELECT * FROM EQUIPO_RAYO.Hechos_Ventas 
 
 SELECT T.tiempo_anio,T.tiempo_mes,AVG(HV.precio) FROM EQUIPO_RAYO.Hechos_Ventas HV
 JOIN EQUIPO_RAYO.Dim_Tiempo T ON T.tiempo_id= HV.tiempo_id
@@ -285,6 +314,7 @@ SELECT * FROM EQUIPO_RAYO.Dim_Tipo_Pasajes
 SELECT * FROM EQUIPO_RAYO.Pasajes
 
 
+SELECT * FROM EQUIPO_RAYO.Dim_Tiempo
 
 SELECT * FROM EQUIPO_RAYO.Dim_Tiempo ORDER BY tiempo_fecha
 SELECT DISTINCT(tiempo_fecha) FROM EQUIPO_RAYO.Dim_Tiempo
@@ -324,3 +354,5 @@ DROP TABLE EQUIPO_RAYO.Dim_Tipo_Pasajes
 DROP FUNCTION cantCamas
 
 */
+
+
